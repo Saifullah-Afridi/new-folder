@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Web3 from "web3";
-import PatientDataStorage from "./abis/PatientDataStorage.json";
+import PatientDataStorage from "./abis/PatientDataStorage.json"; // Ensure this path is correct
 import {
   Button,
   Input,
@@ -47,7 +47,7 @@ const DoctorDashboard = () => {
           "http://localhost:3000/api/v1/patient/todays-patients"
         );
         setVisits(
-          response.data.visits.filter((visit) => visit.status !== "complete")
+          response?.data?.visits?.filter((visit) => visit.status !== "complete")
         );
       } catch (error) {
         toast({
@@ -101,7 +101,6 @@ const DoctorDashboard = () => {
     if (socket.connected) {
       socket.emit("notify-waiting-room", visit, () => {
         console.log("Notification sent");
-        socket.disconnect();
       });
     } else {
       console.error("Socket is not connected");
@@ -112,10 +111,35 @@ const DoctorDashboard = () => {
     setEditingVisit(visit);
     onOpen();
   };
-  console.log(PatientDataStorage); // Check if ABI exists
+  const handleRemove = async (visitId) => {
+    try {
+      // Filter out the removed visit from the list
+      setVisits((prevVisits) =>
+        prevVisits.filter((visit) => visit._id !== visitId)
+      );
+
+      toast({
+        title: "Visit Removed",
+        description: "The visit has been successfully removed.",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove the visit.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
   const handleComplete = async () => {
     if (editingVisit) {
-      const patientNIC = editingVisit.patient.NIC;
+      const patientNIC = editingVisit?.patient?.NIC;
+
       if (!prescription || !tests || !medicines) {
         toast({
           title: "Error",
@@ -129,17 +153,21 @@ const DoctorDashboard = () => {
 
       if (typeof window.ethereum !== "undefined") {
         const web3 = new Web3(window.ethereum);
-        const contractAddress = "0x9ba3701ED5215b61A2F7DCA1184a4f27a79A2c17"; // Replace with your deployed contract address
-        const contract = new web3.eth.Contract(
-          PatientDataStorage,
-          contractAddress
-        );
-        const accounts = await web3.eth.getAccounts();
+        const contractAddress = "0x4C5B4641e5e8c6808d2E397Df1F05b2070FCf5dA";
 
         try {
+          const contract = new web3.eth.Contract(
+            PatientDataStorage,
+            contractAddress
+          );
+
+          const accounts = await web3.eth.getAccounts();
+          const accountToUse = accounts[0];
+
           await contract.methods
-            .storePatientData(accounts[0], prescription, medicines, tests)
-            .send({ from: accounts[0] });
+            .storePatientData(patientNIC, prescription, medicines, tests)
+            .send({ from: accountToUse, gas: 300000 });
+
           toast({
             title: "Success",
             description: "Patient data stored successfully!",
@@ -147,13 +175,41 @@ const DoctorDashboard = () => {
             duration: 5000,
             isClosable: true,
           });
-          // Optionally, you can refresh the visits after storing data
-          const patientData = await contract.methods
-            .patients(accounts[0])
-            .call();
-          setVisits((prevVisits) => [...prevVisits, patientData]);
+
+          // const patientVisits = await contract.methods
+          //   .getVisitsByNIC(patientNIC)
+          //   .call();
+
+          // // Create a set of existing visit IDs for comparison
+          // const existingVisitIds = new Set(visits.map((visit) => visit.id));
+
+          // const newVisits = patientVisits
+          //   .map((visit) => ({
+          //     patient: { NIC: patientNIC },
+          //     prescription: visit.prescription,
+          //     medicines: visit.medicines,
+          //     tests: visit.tests,
+          //     id: visit.visitId, // Use the existing visitId from the blockchain data
+          //   }))
+          //   .filter((visit) => !existingVisitIds.has(visit.id)); // Filter out existing visits
+
+          // // Update visits state with new unique visits only
+          // setVisits((prevVisits) => [...prevVisits, ..newVisits]);
+          await axios.patch(
+            `http://localhost:3000/api/v1/visit/update-status/${editingVisit._id}`,
+            { status: "complete" }
+          );
+
+          // Update the visits state to reflect the updated status
+          setVisits((prevVisits) =>
+            prevVisits.map((visit) =>
+              visit._id === editingVisit._id
+                ? { ...visit, status: "complete" }
+                : visit
+            )
+          );
         } catch (error) {
-          console.error("Error storing patient data:", error);
+          console.error("Error in handleComplete:", error);
           toast({
             title: "Error",
             description: "Failed to store patient data.",
@@ -171,16 +227,7 @@ const DoctorDashboard = () => {
           isClosable: true,
         });
       }
-      console.log("Patient NIC:", patientNIC);
-      console.log("Prescription:", prescription);
-      console.log("Medicines:", medicines);
-      console.log("Tests:", tests);
 
-      // Optionally, send this data to an API endpoint here
-      // const completeData = { patientNIC, prescription, medicines, tests };
-      // axios.post("/api/complete-visit", completeData);
-
-      // Reset form and close modal after completion
       handleCancel();
     }
   };
@@ -215,7 +262,7 @@ const DoctorDashboard = () => {
             fontSize="2xl"
             mb={6}
           >
-            Today Appointments
+            Today's Appointments
           </Heading>
         </Box>
         {visits.length > 0 ? (
@@ -224,7 +271,7 @@ const DoctorDashboard = () => {
               <Tr>
                 <Th>Patient Name</Th>
                 <Th>NIC</Th>
-                <Th>Tests</Th>
+                <Th>Status</Th>
                 <Th>Prescribe</Th>
                 <Th>Notify</Th>
                 <Th>Remove</Th>
@@ -233,13 +280,11 @@ const DoctorDashboard = () => {
             <Tbody>
               {visits?.map((visit) => (
                 <Tr key={visit._id}>
+                  {" "}
+                  {/* Use unique id here */}
                   <Td>{visit.patient.patientName}</Td>
                   <Td>{visit.patient.NIC}</Td>
-                  <Td>
-                    {visit.tests
-                      ? visit.tests.join(", ")
-                      : "No tests available"}
-                  </Td>
+                  <Td>{visit.status}</Td>
                   <Td>
                     <Button
                       colorScheme="blue"
@@ -265,6 +310,7 @@ const DoctorDashboard = () => {
                       aria-label="Delete"
                       isDisabled={visit.status !== "complete"}
                       isLoading={loadingDelete === visit._id}
+                      onClick={() => handleRemove(visit._id)}
                     >
                       Remove
                     </Button>
@@ -290,7 +336,7 @@ const DoctorDashboard = () => {
               width="fit-content"
               size="md"
             >
-              No Appointment is available
+              No Appointments available
             </Heading>
           </Box>
         )}
@@ -298,99 +344,53 @@ const DoctorDashboard = () => {
 
       {/* Modal for editing visit */}
       <Modal
+        size="4xl"
         motionPreset="slideInBottom"
         isOpen={isOpen}
         onClose={handleCancel}
         closeOnOverlayClick={false}
       >
         <ModalOverlay />
-        <ModalContent
-          width="70%"
-          maxWidth="75%"
-          height="100vh"
-          maxHeight="100vh"
-          margin="0"
-          padding="0"
-          overflowY="auto"
-        >
-          <HStack
-            mt={4}
-            width="90%"
-            align="center"
-            justifyContent="space-between"
-          >
-            <Heading fontSize="lg" p={4}>
-              Prescribe for {editingVisit?.patient?.patientName}
-            </Heading>
-            <Button colorScheme="blue" variant="outline">
-              View Previous Records
-            </Button>
-          </HStack>
+        <ModalContent>
           <ModalCloseButton />
-          <ModalBody
-            padding="4"
-            display="flex"
-            flexDirection="column"
-            overflowY="auto"
-            height="calc(100vh - 75px)"
-          >
-            <FormControl mb={4}>
-              <FormLabel fontSize="sm" htmlFor="prescription">
-                Prescription Details
-              </FormLabel>
-              <Textarea
-                {...inputFieldStyle}
-                id="prescription"
-                placeholder="Enter prescription"
-                value={prescription}
-                height="100px"
-                resize="vertical"
-                onChange={(e) => setPrescription(e.target.value)}
-              />
-            </FormControl>
-
-            <FormControl mb={4}>
-              <FormLabel fontSize="sm" htmlFor="medicines">
-                Medicines
-              </FormLabel>
-              <Textarea
-                {...inputFieldStyle}
-                id="medicines"
-                placeholder="Enter medicines"
-                value={medicines}
-                height="100px"
-                resize="vertical"
-                onChange={(e) => setMedicines(e.target.value)}
-              />
-            </FormControl>
-
-            <FormControl mb={4}>
-              <FormLabel fontSize="sm" htmlFor="tests">
-                Tests
-              </FormLabel>
-              <Textarea
-                {...inputFieldStyle}
-                id="tests"
-                placeholder="Enter tests"
-                value={tests}
-                height="100px"
-                resize="vertical"
-                onChange={(e) => setTests(e.target.value)}
-              />
-            </FormControl>
-
-            <HStack justify="center" spacing={4} mt={6}>
-              <Button colorScheme="blue" onClick={handleComplete}>
-                Mark as Complete
-              </Button>
-              <Button
-                colorScheme="red"
-                variant="outline"
-                onClick={handleCancel}
-              >
-                Cancel
-              </Button>
-            </HStack>
+          <ModalBody>
+            <Box>
+              <Heading as="h3" size="lg" textAlign="center" mb={4}>
+                Edit Prescription
+              </Heading>
+              <FormControl mb={4}>
+                <FormLabel>Prescription</FormLabel>
+                <Textarea
+                  style={inputFieldStyle}
+                  value={prescription}
+                  onChange={(e) => setPrescription(e.target.value)}
+                />
+              </FormControl>
+              <FormControl mb={4}>
+                <FormLabel>Medicines</FormLabel>
+                <Textarea
+                  style={inputFieldStyle}
+                  value={medicines}
+                  onChange={(e) => setMedicines(e.target.value)}
+                />
+              </FormControl>
+              <FormControl mb={4}>
+                <FormLabel>Tests</FormLabel>
+                <Textarea
+                  style={inputFieldStyle}
+                  value={tests}
+                  onChange={(e) => setTests(e.target.value)}
+                />
+              </FormControl>
+              <HStack spacing={4} justify="center">
+                <Button colorScheme="blue" onClick={handleComplete}>
+                  Save Changes
+                </Button>
+                <Button colorScheme="gray" onClick={handleCancel}>
+                  Cancel
+                </Button>
+              </HStack>
+            </Box>
           </ModalBody>
         </ModalContent>
       </Modal>

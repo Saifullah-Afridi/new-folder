@@ -4,7 +4,6 @@ const visitSchema = new mongoose.Schema({
   patient: { type: mongoose.Schema.Types.ObjectId, ref: "Patient" },
   status: {
     type: String,
-    required: true,
     enum: ["incomplete", "pending", "complete"],
     default: "incomplete",
   },
@@ -12,11 +11,9 @@ const visitSchema = new mongoose.Schema({
   prescription: String,
   tests: {
     type: String,
-    required: true,
   },
   medicines: {
     type: String,
-    required: true,
   },
 });
 

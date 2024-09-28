@@ -30,6 +30,42 @@
   {
     "inputs": [
       {
+        "internalType": "string",
+        "name": "_nic",
+        "type": "string"
+      }
+    ],
+    "name": "getVisitsByNIC",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "prescription",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "medicines",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "tests",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct PatientDataStorage.Visit[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "",
         "type": "address"
@@ -42,6 +78,40 @@
         "name": "nic",
         "type": "string"
       },
+      {
+        "internalType": "string",
+        "name": "prescription",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "medicines",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "tests",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "visits",
+    "outputs": [
       {
         "internalType": "string",
         "name": "prescription",
