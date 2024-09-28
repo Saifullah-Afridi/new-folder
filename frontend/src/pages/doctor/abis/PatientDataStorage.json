@@ -20,6 +20,11 @@
         "internalType": "string",
         "name": "_tests",
         "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_visitDate",
+        "type": "string"
       }
     ],
     "name": "storePatientData",
@@ -52,6 +57,11 @@
           {
             "internalType": "string",
             "name": "tests",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "visitDate",
             "type": "string"
           }
         ],
@@ -125,6 +135,11 @@
       {
         "internalType": "string",
         "name": "tests",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "visitDate",
         "type": "string"
       }
     ],

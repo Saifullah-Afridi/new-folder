@@ -24,6 +24,14 @@ import {
   Heading,
   HStack,
   useDisclosure,
+  Portal,
+  Flex,
+  Spinner,
+  Card,
+  CardBody,
+  Text,
+  Grid,
+  GridItem,
 } from "@chakra-ui/react";
 import { FaBell, FaTrash } from "react-icons/fa";
 import io from "socket.io-client";
@@ -33,12 +41,19 @@ const socket = io("http://localhost:3000");
 const DoctorDashboard = () => {
   const [visits, setVisits] = useState([]);
   const [editingVisit, setEditingVisit] = useState(null);
+  const [patientName, setPatientName] = useState(
+    editingVisit?.patient?.patientName || null
+  );
+  const [nic, setNIC] = useState(editingVisit?.patient?.NIC || null);
   const [prescription, setPrescription] = useState("");
   const [tests, setTests] = useState("");
   const [medicines, setMedicines] = useState("");
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [loadingDelete, setLoadingDelete] = useState(null);
+  const [showAllRecordsModal, setShowAllRecordsModal] = useState(false);
+  const [previousVisits, setPreviousVisits] = useState([]);
+  const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
 
   useEffect(() => {
     const fetchVisits = async () => {
@@ -46,9 +61,10 @@ const DoctorDashboard = () => {
         const response = await axios.get(
           "http://localhost:3000/api/v1/patient/todays-patients"
         );
-        setVisits(
-          response?.data?.visits?.filter((visit) => visit.status !== "complete")
-        );
+        // setVisits(
+        //   response?.data?.visits?.filter((visit) => visit.status !== "complete")
+        // );
+        setVisits(response?.data?.visits);
       } catch (error) {
         toast({
           title: "Error fetching visits.",
@@ -138,8 +154,8 @@ const DoctorDashboard = () => {
 
   const handleComplete = async () => {
     if (editingVisit) {
-      const patientNIC = editingVisit?.patient?.NIC;
-
+      const NIC = editingVisit?.patient?.NIC;
+      const visitDate = new Date().toISOString(); // Current date in seconds
       if (!prescription || !tests || !medicines) {
         toast({
           title: "Error",
@@ -153,7 +169,7 @@ const DoctorDashboard = () => {
 
       if (typeof window.ethereum !== "undefined") {
         const web3 = new Web3(window.ethereum);
-        const contractAddress = "0x4C5B4641e5e8c6808d2E397Df1F05b2070FCf5dA";
+        const contractAddress = "0x10df88a6FCb3898491954998d19ABf31bDfa7bca";
 
         try {
           const contract = new web3.eth.Contract(
@@ -165,7 +181,7 @@ const DoctorDashboard = () => {
           const accountToUse = accounts[0];
 
           await contract.methods
-            .storePatientData(patientNIC, prescription, medicines, tests)
+            .storePatientData(NIC, prescription, medicines, tests, visitDate)
             .send({ from: accountToUse, gas: 300000 });
 
           toast({
@@ -247,6 +263,52 @@ const DoctorDashboard = () => {
     borderColor: "blue.300",
     outline: "none",
     borderRadius: "3px",
+  };
+  const handleViewPreviousRecords = async () => {
+    const patientNIC = editingVisit?.patient?.NIC;
+
+    setShowAllRecordsModal(true);
+    setIsLoadingPrevious(true);
+    if (typeof window.ethereum !== "undefined") {
+      const web3 = new Web3(window.ethereum);
+      const contractAddress = "0x10df88a6FCb3898491954998d19ABf31bDfa7bca";
+
+      try {
+        const contract = new web3.eth.Contract(
+          PatientDataStorage,
+          contractAddress
+        );
+
+        const accounts = await web3.eth.getAccounts();
+        const accountToUse = accounts[0];
+
+        const visitRecords = await contract.methods
+          .getVisitsByNIC(patientNIC)
+          .call({ from: accountToUse });
+
+        console.log(visitRecords);
+        setPreviousVisits(visitRecords);
+        setIsLoadingPrevious(false);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: { error },
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        setIsLoadingPrevious(false);
+      }
+    } else {
+      setIsLoadingPrevious(false);
+      toast({
+        title: "Error",
+        description: "Ethereum provider not found.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
 
   return (
@@ -344,55 +406,187 @@ const DoctorDashboard = () => {
 
       {/* Modal for editing visit */}
       <Modal
-        size="4xl"
         motionPreset="slideInBottom"
         isOpen={isOpen}
         onClose={handleCancel}
         closeOnOverlayClick={false}
       >
         <ModalOverlay />
-        <ModalContent>
+        <ModalContent
+          width="70%"
+          maxWidth="75%"
+          height="100vh"
+          maxHeight="100vh"
+          margin="0"
+          padding="0"
+          overflowY="auto"
+        >
+          <HStack
+            mt={4}
+            width="90%"
+            align="center"
+            justifyContent="space-between"
+          >
+            <Heading fontSize="lg" p={4}>
+              Prescribe for {editingVisit?.patient?.patientName}
+            </Heading>
+            <Button
+              colorScheme="blue"
+              variant="outline"
+              onClick={handleViewPreviousRecords}
+            >
+              View Previous Records
+            </Button>
+          </HStack>
           <ModalCloseButton />
-          <ModalBody>
-            <Box>
-              <Heading as="h3" size="lg" textAlign="center" mb={4}>
-                Edit Prescription
-              </Heading>
-              <FormControl mb={4}>
-                <FormLabel>Prescription</FormLabel>
-                <Textarea
-                  style={inputFieldStyle}
-                  value={prescription}
-                  onChange={(e) => setPrescription(e.target.value)}
-                />
-              </FormControl>
-              <FormControl mb={4}>
-                <FormLabel>Medicines</FormLabel>
-                <Textarea
-                  style={inputFieldStyle}
-                  value={medicines}
-                  onChange={(e) => setMedicines(e.target.value)}
-                />
-              </FormControl>
-              <FormControl mb={4}>
-                <FormLabel>Tests</FormLabel>
-                <Textarea
-                  style={inputFieldStyle}
-                  value={tests}
-                  onChange={(e) => setTests(e.target.value)}
-                />
-              </FormControl>
-              <HStack spacing={4} justify="center">
-                <Button colorScheme="blue" onClick={handleComplete}>
-                  Save Changes
-                </Button>
-                <Button colorScheme="gray" onClick={handleCancel}>
-                  Cancel
-                </Button>
-              </HStack>
+          <ModalBody
+            padding="4"
+            display="flex"
+            flexDirection="column"
+            overflowY="auto"
+            height="calc(100vh - 75px)"
+          >
+            <FormControl mb={4}>
+              <FormLabel fontSize="sm" htmlFor="prescription">
+                Prescription Details
+              </FormLabel>
+              <Textarea
+                {...inputFieldStyle}
+                id="prescription"
+                placeholder="Enter prescription"
+                value={prescription}
+                height="100px"
+                resize="vertical"
+                onChange={(e) => setPrescription(e.target.value)}
+              />
+            </FormControl>
+
+            <FormControl mb={4}>
+              <FormLabel fontSize="sm" htmlFor="medicines">
+                Medicines
+              </FormLabel>
+              <Textarea
+                {...inputFieldStyle}
+                id="medicines"
+                placeholder="Enter medicines (e.g., Name - Dosage - Duration)"
+                value={medicines}
+                height="100px"
+                resize="vertical"
+                onChange={(e) => setMedicines(e.target.value)}
+              />
+            </FormControl>
+
+            <FormControl mb={4}>
+              <FormLabel fontSize="sm" htmlFor="tests">
+                Tests
+              </FormLabel>
+              <Textarea
+                {...inputFieldStyle}
+                id="tests"
+                placeholder="Enter tests"
+                value={tests}
+                height="100px"
+                resize="vertical"
+                onChange={(e) => setTests(e.target.value)}
+              />
+            </FormControl>
+
+            <Box display="flex" gap={3}>
+              <Button
+                flex={1}
+                variant="outline"
+                colorScheme="red"
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+              <Button flex={1} colorScheme="blue" onClick={handleComplete}>
+                Create
+              </Button>
             </Box>
           </ModalBody>
         </ModalContent>
+      </Modal>
+      <Modal
+        isOpen={showAllRecordsModal}
+        onClose={() => setShowAllRecordsModal(false)}
+        size="3xl"
+        motionPreset="slideInBottom"
+      >
+        <Portal>
+          <ModalOverlay />
+          <ModalContent
+            width="60%"
+            maxWidth="none"
+            height="100vh"
+            margin="0"
+            px={5}
+            overflowY="auto"
+          >
+            <Heading
+              textAlign="center"
+              pl="20px"
+              size="md"
+              fontWeight="semibold"
+              my={6}
+            >
+              Previous Records
+            </Heading>
+            <HStack justify="space-between">
+              <Heading
+                textAlign="center"
+                pl="20px"
+                size="sm"
+                fontWeight="semibold"
+              >
+                Name : {editingVisit?.patient?.patientName}
+              </Heading>
+              <Heading
+                textAlign="center"
+                pl="20px"
+                size="sm"
+                fontWeight="semibold"
+              >
+                NIC : {editingVisit?.patient?.NIC}
+              </Heading>
+            </HStack>
+            <ModalCloseButton />
+            <ModalBody
+              padding="20px"
+              display="flex"
+              flexDirection="column"
+              overflowY="auto"
+              height="calc(100vh - 60px)" // Adjust height as needed
+            >
+              {isLoadingPrevious ? (
+                <Flex justify="center" align="center">
+                  <Spinner size="xl" />
+                </Flex>
+              ) : (
+                <Table variant="simple" colorScheme="blue">
+                  <Thead>
+                    <Tr>
+                      <Th>Prescription</Th>
+                      <Th>Medicines</Th>
+                      <Th>Tests</Th>
+                      <Th>Date</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {previousVisits.map((record, index) => (
+                      <Tr key={index}>
+                        <Td>{record.prescription}</Td>
+                        <Td>{record.medicines}</Td>
+                        <Td>{record.tests}</Td>
+                        <Td>{new Date(record.visitDate).toLocaleString()}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              )}
+            </ModalBody>
+          </ModalContent>
+        </Portal>
       </Modal>
     </div>
   );

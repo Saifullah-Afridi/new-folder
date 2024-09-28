@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import Web3 from "web3";
+import PatientDataStorage from "./abis/PatientDataStorage.json"; // Ensure this path is correct
 import {
   Button,
   Input,
@@ -12,41 +14,46 @@ import {
   Th,
   Td,
   Box,
-  Stack,
   FormControl,
   FormLabel,
-  Flex,
-  useDisclosure,
   Modal,
   ModalOverlay,
   ModalContent,
-  ModalHeader,
   ModalCloseButton,
   ModalBody,
   Heading,
-  Text,
-  IconButton,
+  HStack,
+  useDisclosure,
+  Portal,
+  Flex,
   Spinner,
-  ModalFooter,
   Card,
   CardBody,
-  CardHeader,
-  Divider,
+  Text,
+  Grid,
+  GridItem,
 } from "@chakra-ui/react";
-import { FaMinus, FaPlus } from "react-icons/fa";
+import { FaBell, FaTrash } from "react-icons/fa";
+import io from "socket.io-client";
+
+const socket = io("http://localhost:3000");
 
 const DoctorDashboard = () => {
   const [visits, setVisits] = useState([]);
   const [editingVisit, setEditingVisit] = useState(null);
+  const [patientName, setPatientName] = useState(
+    editingVisit?.patient?.patientName || null
+  );
+  const [nic, setNIC] = useState(editingVisit?.patient?.NIC || null);
   const [prescription, setPrescription] = useState("");
-  const [tests, setTests] = useState([]);
-  const [medicines, setMedicines] = useState([]);
-  const [previousVisits, setPreviousVisits] = useState([]);
-  const [showAllRecordsModal, setShowAllRecordsModal] = useState(false);
-  const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
+  const [tests, setTests] = useState("");
+  const [medicines, setMedicines] = useState("");
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [status, setStatus] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(null);
+  const [showAllRecordsModal, setShowAllRecordsModal] = useState(false);
+  const [previousVisits, setPreviousVisits] = useState([]);
+  const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
 
   useEffect(() => {
     const fetchVisits = async () => {
@@ -54,9 +61,10 @@ const DoctorDashboard = () => {
         const response = await axios.get(
           "http://localhost:3000/api/v1/patient/todays-patients"
         );
-        setVisits(
-          response.data.visits.filter((visit) => visit.status !== "complete")
-        );
+        // setVisits(
+        //   response?.data?.visits?.filter((visit) => visit.status !== "complete")
+        // );
+        setVisits(response?.data?.visits);
       } catch (error) {
         toast({
           title: "Error fetching visits.",
@@ -68,7 +76,23 @@ const DoctorDashboard = () => {
       }
     };
     fetchVisits();
-  }, [toast, status]);
+  }, [toast]);
+
+  useEffect(() => {
+    socket.on("notify-waiting-room", (visit) => {
+      toast({
+        title: "Patient notified.",
+        description: `${visit.patient.patientName} is now the current patient.`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    });
+
+    return () => {
+      socket.off("notify-waiting-room");
+    };
+  }, [toast]);
 
   useEffect(() => {
     if (editingVisit) {
@@ -77,92 +101,50 @@ const DoctorDashboard = () => {
         tests: editTests,
         medicines: editMedicines,
       } = editingVisit;
-
       setPrescription(editPrescription || "");
-      setTests(editTests || []);
+      setTests(editTests ? editTests.join(", ") : "");
       setMedicines(
-        editMedicines?.map((m) => ({
-          name: m.name,
-          dosage: m.dosage,
-          duration: m.duration,
-        })) || []
+        editMedicines
+          ? editMedicines
+              .map((m) => `${m.name} - ${m.dosage} for ${m.duration}`)
+              .join(", ")
+          : ""
       );
     }
   }, [editingVisit]);
+
+  const handleNotify = (visit) => {
+    if (socket.connected) {
+      socket.emit("notify-waiting-room", visit, () => {
+        console.log("Notification sent");
+      });
+    } else {
+      console.error("Socket is not connected");
+    }
+  };
 
   const handlePrescribeClick = (visit) => {
     setEditingVisit(visit);
     onOpen();
   };
-
-  const handleAddTest = () => {
-    setTests([...tests, ""]);
-  };
-
-  const handleRemoveTest = (index) => {
-    setTests(tests.filter((_, i) => i !== index));
-  };
-
-  const handleTestChange = (index, value) => {
-    setTests(tests.map((test, i) => (i === index ? value : test)));
-  };
-
-  const handleAddMedicine = () => {
-    setMedicines([...medicines, { name: "", dosage: "", duration: "" }]);
-  };
-
-  const handleRemoveMedicine = (index) => {
-    setMedicines(medicines.filter((_, i) => i !== index));
-  };
-
-  const handleMedicineChange = (index, field, value) => {
-    setMedicines(
-      medicines.map((medicine, i) =>
-        i === index ? { ...medicine, [field]: value } : medicine
-      )
-    );
-  };
-
-  const handlePending = async () => {
-    if (!editingVisit) return;
-
+  const handleRemove = async (visitId) => {
     try {
-      await axios.patch(
-        `http://localhost:3000/api/v1/visit/update-visit/${editingVisit._id}`,
-        {
-          prescription,
-          tests,
-          medicines,
-        }
-      );
-      await axios.patch(
-        `http://localhost:3000/api/v1/visit/update-status/${editingVisit._id}`,
-        {
-          status: "pending",
-        }
+      // Filter out the removed visit from the list
+      setVisits((prevVisits) =>
+        prevVisits.filter((visit) => visit._id !== visitId)
       );
 
       toast({
-        title: "Visit status updated to Pending.",
+        title: "Visit Removed",
+        description: "The visit has been successfully removed.",
         status: "success",
         duration: 5000,
         isClosable: true,
       });
-
-      // Close the modal
-      onClose();
-
-      setEditingVisit(null);
-      setPreviousVisits([]);
-      setShowAllRecordsModal(false);
-      const response = await axios.get(
-        "http://localhost:3000/api/v1/patient/todays-patients"
-      );
-      setVisits(response.data.visits);
     } catch (error) {
       toast({
-        title: "Error updating visit status.",
-        description: error.message,
+        title: "Error",
+        description: "Failed to remove the visit.",
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -171,93 +153,161 @@ const DoctorDashboard = () => {
   };
 
   const handleComplete = async () => {
-    if (!editingVisit) return;
+    if (editingVisit) {
+      const nicc = editingVisit?.patient?.NIC;
+      if (!prescription || !tests || !medicines) {
+        toast({
+          title: "Error",
+          description: "All fields are required.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
 
-    try {
-      await axios.patch(
-        `http://localhost:3000/api/v1/visit/update-visit/${editingVisit._id}`,
-        {
-          prescription,
-          tests,
-          medicines,
+      if (typeof window.ethereum !== "undefined") {
+        const web3 = new Web3(window.ethereum);
+        const contractAddress = "0x42D5e94351e4Ae22fEf2003df54A78a450371d97";
+
+        try {
+          const contract = new web3.eth.Contract(
+            PatientDataStorage,
+            contractAddress
+          );
+
+          const accounts = await web3.eth.getAccounts();
+          const accountToUse = accounts[0];
+
+          await contract.methods
+            .storePatientData(nicc, prescription, medicines, tests)
+            .send({ from: accountToUse, gas: 300000 });
+
+          toast({
+            title: "Success",
+            description: "Patient data stored successfully!",
+            status: "success",
+            duration: 5000,
+            isClosable: true,
+          });
+
+          // const patientVisits = await contract.methods
+          //   .getVisitsByNIC(patientNIC)
+          //   .call();
+
+          // // Create a set of existing visit IDs for comparison
+          // const existingVisitIds = new Set(visits.map((visit) => visit.id));
+
+          // const newVisits = patientVisits
+          //   .map((visit) => ({
+          //     patient: { NIC: patientNIC },
+          //     prescription: visit.prescription,
+          //     medicines: visit.medicines,
+          //     tests: visit.tests,
+          //     id: visit.visitId, // Use the existing visitId from the blockchain data
+          //   }))
+          //   .filter((visit) => !existingVisitIds.has(visit.id)); // Filter out existing visits
+
+          // // Update visits state with new unique visits only
+          // setVisits((prevVisits) => [...prevVisits, ..newVisits]);
+          await axios.patch(
+            `http://localhost:3000/api/v1/visit/update-status/${editingVisit._id}`,
+            { status: "complete" }
+          );
+
+          // Update the visits state to reflect the updated status
+          setVisits((prevVisits) =>
+            prevVisits.map((visit) =>
+              visit._id === editingVisit._id
+                ? { ...visit, status: "complete" }
+                : visit
+            )
+          );
+        } catch (error) {
+          console.error("Error in handleComplete:", error);
+          toast({
+            title: "Error",
+            description: "Failed to store patient data.",
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
         }
-      );
-      await axios.patch(
-        `http://localhost:3000/api/v1/visit/update-status/${editingVisit._id}`,
-        {
-          status: "complete",
-        }
-      );
+      } else {
+        toast({
+          title: "Error",
+          description: "Ethereum provider not found.",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      }
 
-      toast({
-        title: "Visit completed.",
-        description: "The visit has been marked as complete.",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-      });
-
-      // Close the modal
-      onClose();
-
-      setEditingVisit(null);
-      setPreviousVisits([]);
-      setShowAllRecordsModal(false);
-      const response = await axios.get(
-        "http://localhost:3000/api/v1/patient/todays-patients"
-      );
-      setVisits(response.data.visits);
-      setStatus(true);
-    } catch (error) {
-      toast({
-        title: "Error completing visit.",
-        description: error.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+      handleCancel();
     }
   };
 
   const handleCancel = () => {
     setEditingVisit(null);
     setPrescription("");
-    setTests([]);
-    setMedicines([]);
-    setPreviousVisits([]);
-    setShowAllRecordsModal(false);
+    setTests("");
+    setMedicines("");
     onClose();
   };
 
-  const fetchPreviousVisits = async () => {
-    if (!editingVisit) return;
-    setIsLoadingPrevious(true);
-    try {
-      const response = await axios.get(
-        `http://localhost:3000/api/v1/visit/all-visits/${editingVisit.patient._id}`
-      );
-      setPreviousVisits(response.data.visits);
-      setShowAllRecordsModal(true);
-    } catch (error) {
-      toast({
-        title: "Error fetching previous visits.",
-        description: error.response.data.message,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsLoadingPrevious(false);
-    }
-  };
-
   const inputFieldStyle = {
-    height: "30px",
+    height: "35px",
     borderWidth: "1px",
     boxShadow: "0 0 0 1px #3182ce",
     borderColor: "blue.300",
     outline: "none",
     borderRadius: "3px",
+  };
+  const handleViewPreviousRecords = async () => {
+    const patientNIC = editingVisit?.patient?.NIC;
+
+    setShowAllRecordsModal(true);
+    setIsLoadingPrevious(true);
+    if (typeof window.ethereum !== "undefined") {
+      const web3 = new Web3(window.ethereum);
+      const contractAddress = "0x42D5e94351e4Ae22fEf2003df54A78a450371d97";
+
+      try {
+        const contract = new web3.eth.Contract(
+          PatientDataStorage,
+          contractAddress
+        );
+
+        const accounts = await web3.eth.getAccounts();
+        const accountToUse = accounts[0];
+
+        const visitRecords = await contract.methods
+          .getVisitsByNIC(patientNIC)
+          .call({ from: accountToUse });
+
+        console.log(visitRecords);
+        setPreviousVisits(visitRecords);
+        setIsLoadingPrevious(false);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: { error },
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        setIsLoadingPrevious(false);
+      }
+    } else {
+      setIsLoadingPrevious(false);
+      toast({
+        title: "Error",
+        description: "Ethereum provider not found.",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
 
   return (
@@ -271,27 +321,31 @@ const DoctorDashboard = () => {
             pb="3px"
             width="fit-content"
             fontSize="2xl"
-            mb={3}
+            mb={6}
           >
             Today's Appointments
           </Heading>
         </Box>
         {visits.length > 0 ? (
-          <Table variant="simple" colorScheme="blue" size="md">
+          <Table variant="simple" colorScheme="blue" size="lg">
             <Thead bgColor="green.200">
               <Tr>
                 <Th>Patient Name</Th>
+                <Th>NIC</Th>
                 <Th>Status</Th>
-                <Th>Tests</Th>
-                <Th>Actions</Th>
+                <Th>Prescribe</Th>
+                <Th>Notify</Th>
+                <Th>Remove</Th>
               </Tr>
             </Thead>
             <Tbody>
               {visits?.map((visit) => (
                 <Tr key={visit._id}>
+                  {" "}
+                  {/* Use unique id here */}
                   <Td>{visit.patient.patientName}</Td>
+                  <Td>{visit.patient.NIC}</Td>
                   <Td>{visit.status}</Td>
-                  <Td>{visit.tests.join(", ")}</Td>
                   <Td>
                     <Button
                       colorScheme="blue"
@@ -300,212 +354,219 @@ const DoctorDashboard = () => {
                       Prescribe
                     </Button>
                   </Td>
+                  <Td>
+                    <Button
+                      leftIcon={<FaBell />}
+                      colorScheme="yellow"
+                      onClick={() => handleNotify(visit)}
+                      aria-label="Notify"
+                    >
+                      Notify
+                    </Button>
+                  </Td>
+                  <Td>
+                    <Button
+                      colorScheme="red"
+                      leftIcon={<FaTrash />}
+                      aria-label="Delete"
+                      isDisabled={visit.status !== "complete"}
+                      isLoading={loadingDelete === visit._id}
+                      onClick={() => handleRemove(visit._id)}
+                    >
+                      Remove
+                    </Button>
+                  </Td>
                 </Tr>
               ))}
             </Tbody>
           </Table>
         ) : (
           <Box
-            textAlign="center"
-            py={10}
-            px={6}
-            bg="gray.100"
-            borderRadius="md"
+            h="90vh"
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            flexDir="column"
           >
-            <Text fontSize="lg">No appointments for today.</Text>
+            <Heading
+              borderRadius="7px"
+              color="gray.700"
+              p={4}
+              fontWeight="semibold"
+              bgGradient="linear(to-r , red.300 , red.400)"
+              width="fit-content"
+              size="md"
+            >
+              No Appointments available
+            </Heading>
           </Box>
         )}
       </Box>
-      {/* Prescription Modal */}
-      <Modal isOpen={isOpen} onClose={handleCancel} size="lg">
+
+      {/* Modal for editing visit */}
+      <Modal
+        motionPreset="slideInBottom"
+        isOpen={isOpen}
+        onClose={handleCancel}
+        closeOnOverlayClick={false}
+      >
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>
-            Prescription for {editingVisit?.patient.patientName}
-          </ModalHeader>
+        <ModalContent
+          width="70%"
+          maxWidth="75%"
+          height="100vh"
+          maxHeight="100vh"
+          margin="0"
+          padding="0"
+          overflowY="auto"
+        >
+          <HStack
+            mt={4}
+            width="90%"
+            align="center"
+            justifyContent="space-between"
+          >
+            <Heading fontSize="lg" p={4}>
+              Prescribe for {editingVisit?.patient?.patientName}
+            </Heading>
+            <Button
+              colorScheme="blue"
+              variant="outline"
+              onClick={handleViewPreviousRecords}
+            >
+              View Previous Records
+            </Button>
+          </HStack>
           <ModalCloseButton />
-          <ModalBody>
-            <Stack spacing={4}>
-              <FormControl>
-                <FormLabel htmlFor="prescription">Prescription</FormLabel>
-                <Textarea
-                  id="prescription"
-                  value={prescription}
-                  onChange={(e) => setPrescription(e.target.value)}
-                  style={inputFieldStyle}
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel htmlFor="tests">Tests</FormLabel>
-                {tests.map((test, index) => (
-                  <Flex key={index} align="center">
-                    <Input
-                      value={test}
-                      onChange={(e) => handleTestChange(index, e.target.value)}
-                      placeholder={`Test ${index + 1}`}
-                      style={inputFieldStyle}
-                    />
-                    <IconButton
-                      ml={2}
-                      icon={<FaMinus />}
-                      aria-label="Remove Test"
-                      onClick={() => handleRemoveTest(index)}
-                    />
-                    <IconButton
-                      ml={2}
-                      icon={<FaPlus />}
-                      aria-label="Add Test"
-                      onClick={handleAddTest}
-                    />
-                  </Flex>
-                ))}
-              </FormControl>
-              <FormControl>
-                <FormLabel htmlFor="medicines">Medicines</FormLabel>
-                {medicines.map((medicine, index) => (
-                  <Stack key={index} spacing={3}>
-                    <FormControl>
-                      <FormLabel htmlFor={`medicineName-${index}`}>
-                        Medicine Name
-                      </FormLabel>
-                      <Input
-                        id={`medicineName-${index}`}
-                        value={medicine.name}
-                        onChange={(e) =>
-                          handleMedicineChange(index, "name", e.target.value)
-                        }
-                        placeholder="Medicine Name"
-                        style={inputFieldStyle}
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel htmlFor={`dosage-${index}`}>Dosage</FormLabel>
-                      <Input
-                        id={`dosage-${index}`}
-                        value={medicine.dosage}
-                        onChange={(e) =>
-                          handleMedicineChange(index, "dosage", e.target.value)
-                        }
-                        placeholder="Dosage"
-                        style={inputFieldStyle}
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel htmlFor={`duration-${index}`}>
-                        Duration
-                      </FormLabel>
-                      <Input
-                        id={`duration-${index}`}
-                        value={medicine.duration}
-                        onChange={(e) =>
-                          handleMedicineChange(
-                            index,
-                            "duration",
-                            e.target.value
-                          )
-                        }
-                        placeholder="Duration"
-                        style={inputFieldStyle}
-                      />
-                    </FormControl>
-                    <IconButton
-                      ml={2}
-                      icon={<FaMinus />}
-                      aria-label="Remove Medicine"
-                      onClick={() => handleRemoveMedicine(index)}
-                    />
-                    <IconButton
-                      ml={2}
-                      icon={<FaPlus />}
-                      aria-label="Add Medicine"
-                      onClick={handleAddMedicine}
-                    />
-                  </Stack>
-                ))}
-              </FormControl>
-              <Button colorScheme="blue" onClick={fetchPreviousVisits}>
-                View All Previous Records
+          <ModalBody
+            padding="4"
+            display="flex"
+            flexDirection="column"
+            overflowY="auto"
+            height="calc(100vh - 75px)"
+          >
+            <FormControl mb={4}>
+              <FormLabel fontSize="sm" htmlFor="prescription">
+                Prescription Details
+              </FormLabel>
+              <Textarea
+                {...inputFieldStyle}
+                id="prescription"
+                placeholder="Enter prescription"
+                value={prescription}
+                height="100px"
+                resize="vertical"
+                onChange={(e) => setPrescription(e.target.value)}
+              />
+            </FormControl>
+
+            <FormControl mb={4}>
+              <FormLabel fontSize="sm" htmlFor="medicines">
+                Medicines
+              </FormLabel>
+              <Textarea
+                {...inputFieldStyle}
+                id="medicines"
+                placeholder="Enter medicines (e.g., Name - Dosage - Duration)"
+                value={medicines}
+                height="100px"
+                resize="vertical"
+                onChange={(e) => setMedicines(e.target.value)}
+              />
+            </FormControl>
+
+            <FormControl mb={4}>
+              <FormLabel fontSize="sm" htmlFor="tests">
+                Tests
+              </FormLabel>
+              <Textarea
+                {...inputFieldStyle}
+                id="tests"
+                placeholder="Enter tests"
+                value={tests}
+                height="100px"
+                resize="vertical"
+                onChange={(e) => setTests(e.target.value)}
+              />
+            </FormControl>
+
+            <Box display="flex" gap={3}>
+              <Button
+                flex={1}
+                variant="outline"
+                colorScheme="red"
+                onClick={handleCancel}
+              >
+                Cancel
               </Button>
-            </Stack>
+              <Button flex={1} colorScheme="blue" onClick={handleComplete}>
+                Create
+              </Button>
+            </Box>
           </ModalBody>
-          <ModalFooter>
-            <Button colorScheme="blue" onClick={handlePending}>
-              Save & Mark as Pending
-            </Button>
-            <Button colorScheme="green" onClick={handleComplete} ml={3}>
-              Save & Mark as Complete
-            </Button>
-          </ModalFooter>
         </ModalContent>
       </Modal>
-
-      {/* Previous Records Modal */}
       <Modal
         isOpen={showAllRecordsModal}
         onClose={() => setShowAllRecordsModal(false)}
-        size="lg"
+        size="3xl"
+        motionPreset="slideInBottom"
       >
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>All Previous Records</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {isLoadingPrevious ? (
-              <Flex justify="center" align="center" height="300px">
-                <Spinner size="xl" />
-              </Flex>
-            ) : previousVisits.length > 0 ? (
-              previousVisits.map((visit) => (
-                <Card key={visit._id} mb={4}>
-                  <CardHeader>
-                    <Heading size="md">
-                      Visit on {new Date(visit.date).toLocaleDateString()}
-                    </Heading>
-                  </CardHeader>
-                  <CardBody>
-                    <Text>
-                      <strong>Patient Name:</strong> {visit.patient.patientName}
-                    </Text>
-                    <Text>
-                      <strong>Prescription:</strong> {visit.prescription}
-                    </Text>
-                    <Text>
-                      <strong>Tests:</strong> {visit.tests.join(", ")}
-                    </Text>
-                    <Text>
-                      <strong>Medicines:</strong>{" "}
-                      {visit.medicines
-                        .map((m) => `${m.name} (${m.dosage}, ${m.duration})`)
-                        .join(", ")}
-                    </Text>
-                    <Text>
-                      <strong>Status:</strong> {visit.status}
-                    </Text>
-                  </CardBody>
-                  <Divider />
-                </Card>
-              ))
-            ) : (
-              <Box
-                textAlign="center"
-                py={10}
-                px={6}
-                bg="gray.100"
-                borderRadius="md"
-              >
-                <Text fontSize="lg">No previous records found.</Text>
-              </Box>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              colorScheme="blue"
-              onClick={() => setShowAllRecordsModal(false)}
+        <Portal>
+          <ModalOverlay />
+          <ModalContent
+            width="60%"
+            maxWidth="none"
+            height="100vh"
+            margin="0"
+            px={5}
+            overflowY="auto"
+          >
+            <Heading
+              textAlign="center"
+              pl="20px"
+              size="md"
+              fontWeight="semibold"
+              my={6}
             >
-              Close
-            </Button>
-          </ModalFooter>
-        </ModalContent>
+              Previous Records
+            </Heading>
+            <HStack justify="space-between">
+              <Heading
+                textAlign="center"
+                pl="20px"
+                size="sm"
+                fontWeight="semibold"
+              >
+                Name : {editingVisit?.patient?.patientName}
+              </Heading>
+              <Heading
+                textAlign="center"
+                pl="20px"
+                size="sm"
+                fontWeight="semibold"
+              >
+                NIC : {editingVisit?.patient?.NIC}
+              </Heading>
+            </HStack>
+            <ModalCloseButton />
+            <ModalBody
+              padding="20px"
+              display="flex"
+              flexDirection="column"
+              overflowY="auto"
+              height="calc(100vh - 60px)" // Adjust height as needed
+            >
+              {isLoadingPrevious ? (
+                <Flex justify="center" align="center">
+                  <Spinner size="xl" />
+                </Flex>
+              ) : (
+                <div>what is up</div>
+              )}
+            </ModalBody>
+          </ModalContent>
+        </Portal>
       </Modal>
     </div>
   );
