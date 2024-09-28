@@ -523,15 +523,18 @@ const DoctorDashboard = () => {
             px={5}
             overflowY="auto"
           >
-            <Heading
-              textAlign="center"
-              pl="20px"
-              size="md"
-              fontWeight="semibold"
-              my={6}
-            >
-              Previous Records
-            </Heading>
+            <Box mx="auto">
+              <Heading
+                textAlign="center"
+                size="md"
+                fontWeight="semibold"
+                my={6}
+                w="fit-content"
+                borderBottom="2px"
+              >
+                Previous Visits Records
+              </Heading>
+            </Box>
             <HStack justify="space-between">
               <Heading
                 textAlign="center"
