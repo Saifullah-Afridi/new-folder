@@ -6,8 +6,11 @@ import EditEmployee from "./components/EditEmployee";
 import ReceptionistPrivateRoutes from "./components/ReceptionistPrivateRoutes";
 import AdminPrivateRoutes from "./components/AdminPrivateRoutes";
 import RoutesWithHeader from "./components/RoutesWithHeader";
-import DoctorDashboard from "./pages/doctor/DoctorDashboard";
+import DoctorDashboard from "./pages/doctor/Doctor";
 import AdminLayout from "./layouts/AdminLayout/AAdminLayout";
+import Doctor from "./pages/doctor/Doctor";
+import DoctorPrivateRoute from "./components/DoctorPrivateRoute";
+import NotFound from "./components/NotFound";
 
 const App = () => {
   return (
@@ -28,7 +31,14 @@ const App = () => {
               </ReceptionistPrivateRoutes>
             }
           />
-          <Route path="/doctor" element={<DoctorDashboard />}></Route>
+          <Route
+            path="/doctor"
+            element={
+              <DoctorPrivateRoute>
+                <Doctor />
+              </DoctorPrivateRoute>
+            }
+          ></Route>
         </Route>
 
         {/* docots routes */}
@@ -40,6 +50,7 @@ const App = () => {
           </Route>
         </Route>
         <Route path="waiting-room" element={<WaitingRoom />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );

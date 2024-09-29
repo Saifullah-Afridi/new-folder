@@ -38,7 +38,7 @@ import io from "socket.io-client";
 
 const socket = io("http://localhost:3000");
 
-const DoctorDashboard = () => {
+const Doctor = () => {
   const [visits, setVisits] = useState([]);
   const [editingVisit, setEditingVisit] = useState(null);
   const [patientName, setPatientName] = useState(
@@ -670,4 +670,4 @@ const DoctorDashboard = () => {
   );
 };
 
-export default DoctorDashboard;
+export default Doctor;

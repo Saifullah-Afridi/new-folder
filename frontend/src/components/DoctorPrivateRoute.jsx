@@ -5,7 +5,7 @@ const DoctorPrivateRoute = ({ children }) => {
     JSON.parse(localStorage.getItem("user")) || null
   );
   if (!employee) {
-    return <Navigate to="/login" replace={true} />;
+    return <Navigate to="/log-in" replace={true} />;
   }
   if (employee.occupation === "receptionist") {
     return <Navigate to="/receptionist" replace={true} />;

@@ -6,10 +6,10 @@ const ReceptionistPrivateRoutes = ({ children }) => {
     JSON.parse(localStorage.getItem("user")) || null
   );
   if (!employee) {
-    return <Navigate to="log-in" />;
+    return <Navigate to="/log-in" replace={true} />;
   }
   if (employee.occupation === "doctor") {
-    return <Navigate to="/doctor" />;
+    return <Navigate to="/doctor" replace={true} />;
   }
   return children;
 };
