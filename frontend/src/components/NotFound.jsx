@@ -1,6 +1,6 @@
 // NotFound.js
 import React from "react";
-import { Box, Heading, Text, Button } from "@chakra-ui/react";
+import { Box, Heading, Text, Button, HStack } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 
 const NotFound = () => {
@@ -8,6 +8,10 @@ const NotFound = () => {
 
   const handleHomeRedirect = () => {
     navigate("/"); // Redirect to the home page
+  };
+
+  const handleGoBack = () => {
+    navigate(-1); // Go back to the previous page
   };
 
   return (
@@ -27,9 +31,11 @@ const NotFound = () => {
       <Text fontSize="lg" mb={6}>
         The page you're looking for doesn't exist.
       </Text>
-      <Button onClick={handleHomeRedirect} colorScheme="blue">
-        Go to Home
-      </Button>
+      <HStack spacing={4}>
+        <Button onClick={handleGoBack} colorScheme="teal">
+          Go Back
+        </Button>
+      </HStack>
     </Box>
   );
 };
