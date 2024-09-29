@@ -54,7 +54,7 @@ const DoctorDashboard = () => {
   const [showAllRecordsModal, setShowAllRecordsModal] = useState(false);
   const [previousVisits, setPreviousVisits] = useState([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
-
+  const contractAddress = "0xE2022329b70d28150808aE770224ACc95f144EeA";
   useEffect(() => {
     const fetchVisits = async () => {
       try {
@@ -169,7 +169,6 @@ const DoctorDashboard = () => {
 
       if (typeof window.ethereum !== "undefined") {
         const web3 = new Web3(window.ethereum);
-        const contractAddress = "0x10df88a6FCb3898491954998d19ABf31bDfa7bca";
 
         try {
           const contract = new web3.eth.Contract(
@@ -271,7 +270,6 @@ const DoctorDashboard = () => {
     setIsLoadingPrevious(true);
     if (typeof window.ethereum !== "undefined") {
       const web3 = new Web3(window.ethereum);
-      const contractAddress = "0x10df88a6FCb3898491954998d19ABf31bDfa7bca";
 
       try {
         const contract = new web3.eth.Contract(
@@ -566,26 +564,103 @@ const DoctorDashboard = () => {
                   <Spinner size="xl" />
                 </Flex>
               ) : (
-                <Table variant="simple" colorScheme="blue">
-                  <Thead>
-                    <Tr>
-                      <Th>Prescription</Th>
-                      <Th>Medicines</Th>
-                      <Th>Tests</Th>
-                      <Th>Date</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {previousVisits.map((record, index) => (
-                      <Tr key={index}>
-                        <Td>{record.prescription}</Td>
-                        <Td>{record.medicines}</Td>
-                        <Td>{record.tests}</Td>
-                        <Td>{new Date(record.visitDate).toLocaleString()}</Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
+                <Box
+                  width="100%"
+                  p={1}
+                  bg="white"
+                  borderWidth="1px"
+                  borderRadius="lg"
+                  shadow="md"
+                >
+                  {previousVisits.map((record, index) => (
+                    <Box
+                      key={index}
+                      borderBottom="1px solid"
+                      borderColor="gray.300"
+                      width="100%"
+                      mt={4}
+                    >
+                      {/* Visit Date */}
+                      <Text
+                        fontSize="lg"
+                        fontWeight="semibold"
+                        textAlign="left"
+                        color="blue.600"
+                      >
+                        Date of Visit:{" "}
+                        {new Date(record.visitDate).toLocaleDateString(
+                          undefined,
+                          {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          }
+                        )}
+                      </Text>
+
+                      {/* Patient Record Information */}
+                      <Box
+                        mt={2}
+                        p={4}
+                        bg="green.100"
+                        borderRadius="md"
+                        borderWidth="1px"
+                        borderColor="gray.200"
+                      >
+                        {/* Prescription Section */}
+                        <Box mb={4}>
+                          <Text
+                            fontSize="md"
+                            fontWeight="bold"
+                            color="gray.800"
+                            borderBottom="1px solid"
+                            borderColor="gray.300"
+                            mb={2}
+                          >
+                            Prescription
+                          </Text>
+                          <Text fontSize="sm" color="gray.700" ml={2}>
+                            {record.prescription}
+                          </Text>
+                        </Box>
+
+                        {/* Medicines Section */}
+                        <Box mb={4}>
+                          <Text
+                            fontSize="md"
+                            fontWeight="bold"
+                            color="gray.800"
+                            borderBottom="1px solid"
+                            borderColor="gray.300"
+                            mb={2}
+                          >
+                            Medicines
+                          </Text>
+                          <Text fontSize="sm" color="gray.700" ml={2}>
+                            {record.medicines}
+                          </Text>
+                        </Box>
+
+                        {/* Tests Section */}
+                        <Box>
+                          <Text
+                            fontSize="md"
+                            fontWeight="bold"
+                            color="gray.800"
+                            borderBottom="1px solid"
+                            borderColor="gray.300"
+                            mb={2}
+                          >
+                            Tests
+                          </Text>
+                          <Text fontSize="sm" color="gray.700" ml={2}>
+                            {record.tests}
+                          </Text>
+                        </Box>
+                      </Box>
+                    </Box>
+                  ))}
+                </Box>
               )}
             </ModalBody>
           </ModalContent>
