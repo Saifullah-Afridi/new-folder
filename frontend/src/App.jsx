@@ -18,7 +18,7 @@ const App = () => {
           <Route index element={<LoginPage />} />
           <Route path="/log-in" element={<LoginPage />} />
           {/* public routes */}
-          <Route path="waiting-room" element={<WaitingRoom />} />
+
           {/* reciptionist routes */}
           <Route
             path="/receptionist"
@@ -39,6 +39,7 @@ const App = () => {
             <Route path="edit-employee/:id" element={<EditEmployee />} />
           </Route>
         </Route>
+        <Route path="waiting-room" element={<WaitingRoom />} />
       </Routes>
     </BrowserRouter>
   );

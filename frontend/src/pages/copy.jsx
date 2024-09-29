@@ -8,10 +8,12 @@ import {
   Tr,
   Th,
   Td,
+  Button,
   useToast,
+  Divider,
+  Text,
   VStack,
   Grid,
-  Text,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 import axios from "axios";
@@ -46,8 +48,11 @@ const WaitingRoom = () => {
   useEffect(() => {
     const socket = io("http://localhost:3000");
 
+    // Listen for the 'notify-waiting-room' event
     socket.on("update-waiting-room", (visit) => {
-      setCurrentVisit(visit._id);
+      console.log("hello from there");
+
+      setCurrentVisit(visit._id); // Update current visit ID
       toast({
         title: "New Visit Notified.",
         description: `Visit ID ${visit._id} has been notified.`,
@@ -72,18 +77,19 @@ const WaitingRoom = () => {
     }
   };
 
+  // Automatic scrolling effect
   useEffect(() => {
     const scrollContainer = scrollRef.current;
-    if (scrollContainer && patients.length >= 9) {
+    if (scrollContainer) {
       const scrollHeight = scrollContainer.scrollHeight;
       const clientHeight = scrollContainer.clientHeight;
 
       const scrollStep = 1;
       const scrollInterval = setInterval(() => {
         if (scrollContainer.scrollTop + clientHeight >= scrollHeight - 1) {
-          scrollContainer.scrollTop = 0;
+          scrollContainer.scrollTop = 0; // Reset to top if reached the bottom
         } else {
-          scrollContainer.scrollTop += scrollStep;
+          scrollContainer.scrollTop += scrollStep; // Scroll down
         }
       }, 50);
 
@@ -146,32 +152,37 @@ const WaitingRoom = () => {
                 <Table size="sm">
                   <Thead>
                     <Tr>
-                      <Th bg="blue.500" color="white" fontWeight="bold">
-                        Visit ID
-                      </Th>
-                      <Th bg="blue.500" color="white" fontWeight="bold">
-                        Patient Name
-                      </Th>
-                      <Th bg="blue.500" color="white" fontWeight="bold">
-                        Guardian Name
-                      </Th>
-                      <Th bg="blue.500" color="white" fontWeight="bold">
-                        Status
-                      </Th>
+                      <Th>Visit ID</Th>
+                      <Th>Patient Name</Th>
+                      <Th>Guardian Name</Th>
+                      <Th>Status</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
+                    {/* Render original patients */}
                     {patients.map((patient) => (
                       <Tr
                         key={patient._id}
                         height="50px"
                         bg={getRowBackgroundColor(patient.status)}
-                        _hover={{ bg: "gray.100" }} // Add hover effect
                       >
-                        <Td p={2}>{patient._id}</Td>
-                        <Td p={2}>{patient.patient.patientName}</Td>
-                        <Td p={2}>{patient.patient.guardianName}</Td>
-                        <Td p={2}>{patient.status}</Td>
+                        <Td>{patient._id}</Td>
+                        <Td>{patient.patientName}</Td>
+                        <Td>{patient.guardianName}</Td>
+                        <Td>{patient.status}</Td>
+                      </Tr>
+                    ))}
+
+                    {patients.map((patient) => (
+                      <Tr
+                        key={`${patient._id}-clone`}
+                        height="50px"
+                        bg={getRowBackgroundColor(patient.status)}
+                      >
+                        <Td>{patient._id}</Td>
+                        <Td>{patient.patientName}</Td>
+                        <Td>{patient.status}</Td>
+                        <Td>{patient.status}</Td>
                       </Tr>
                     ))}
                   </Tbody>
