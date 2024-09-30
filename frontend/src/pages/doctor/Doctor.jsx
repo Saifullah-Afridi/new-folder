@@ -61,10 +61,9 @@ const Doctor = () => {
         const response = await axios.get(
           "http://localhost:3000/api/v1/patient/todays-patients"
         );
-        // setVisits(
-        //   response?.data?.visits?.filter((visit) => visit.status !== "complete")
-        // );
-        setVisits(response?.data?.visits);
+        setVisits(
+          response?.data?.visits?.filter((visit) => visit.status !== "complete")
+        );
       } catch (error) {
         toast({
           title: "Error fetching visits.",
@@ -133,7 +132,7 @@ const Doctor = () => {
       setVisits((prevVisits) =>
         prevVisits.filter((visit) => visit._id !== visitId)
       );
-
+      socket.emit("removeVisit", { _id: visitId });
       toast({
         title: "Visit Removed",
         description: "The visit has been successfully removed.",

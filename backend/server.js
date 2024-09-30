@@ -14,14 +14,13 @@ const io = new Server(server, {
 });
 
 io.on("connection", (socket) => {
-  console.log("New client connected");
-
   socket.on("notify-waiting-room", (visit) => {
-    console.log(visit);
-
     io.emit("update-waiting-room", visit);
   });
-
+  // Listen for the removeVisit event
+  socket.on("removeVisit", (data) => {
+    io.emit("removeVisit", data); // Notify other clients about the removal
+  });
   socket.on("disconnect", () => {
     console.log("Client disconnected");
   });

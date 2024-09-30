@@ -21,6 +21,7 @@ const WaitingRoom = () => {
   const [currentVisit, setCurrentVisit] = useState(null);
   const toast = useToast();
   const scrollRef = useRef(null);
+  const audioRef = useRef(new Audio("/bell.mp3")); // Path to your notification sound
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -28,7 +29,10 @@ const WaitingRoom = () => {
         const response = await axios.get(
           "http://localhost:3000/api/v1/patient/todays-patients"
         );
-        setPatients(response?.data?.visits);
+
+        setPatients(
+          response?.data?.visits?.filter((visit) => visit.status !== "complete")
+        );
       } catch (error) {
         toast({
           title: "Error fetching patients.",
@@ -41,16 +45,29 @@ const WaitingRoom = () => {
     };
 
     fetchPatients();
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     const socket = io("http://localhost:3000");
 
     socket.on("update-waiting-room", (visit) => {
       setCurrentVisit(visit._id);
+      audioRef.current.play(); // Play the notification sound here
       toast({
         title: "New Visit Notified.",
         description: `Visit ID ${visit._id} has been notified.`,
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    });
+    socket.on("removeVisit", (data) => {
+      setPatients((prevPatients) =>
+        prevPatients.filter((patient) => patient._id !== data._id)
+      );
+      toast({
+        title: "Patient Removed",
+        description: `Patient with Visit ID ${data._id} has been removed.`,
         status: "info",
         duration: 3000,
         isClosable: true,
@@ -60,17 +77,6 @@ const WaitingRoom = () => {
       socket.disconnect();
     };
   }, [toast]);
-
-  const getRowBackgroundColor = (status) => {
-    switch (status) {
-      case "In Progress":
-        return "blue.100";
-      case "Pending":
-        return "orange.100";
-      default:
-        return "white";
-    }
-  };
 
   useEffect(() => {
     const scrollContainer = scrollRef.current;
@@ -112,19 +118,38 @@ const WaitingRoom = () => {
             <Box
               p={6}
               borderRadius="md"
-              mb={8}
+              mt={8}
+              bgColor="green.200"
               textAlign="center"
-              bg="blue.50"
-              borderWidth={1}
+              borderRightWidth={2}
               borderColor="blue.400"
               shadow="lg"
             >
-              <Text fontSize="xl" fontWeight="bold" color="blue.800">
-                Current Patient
-              </Text>
-              <Text fontSize="md" color="gray.600" mt={2}>
-                Please proceed to the Doctor Room.
-              </Text>
+              {patients
+                .filter((patient) => patient._id === currentVisit)
+                .map((patient) => (
+                  <VStack key={patient._id} spacing={3}>
+                    <Text fontSize="xl" fontWeight="bold" color="blue.900">
+                      Current Patient
+                    </Text>
+
+                    <Text fontSize="lg" fontWeight="bold">
+                      Name: {patient.patient.patientName}
+                    </Text>
+
+                    <Text fontSize="md" color="gray.700" fontWeight="bold">
+                      Guardian: {patient.patient.guardianName}
+                    </Text>
+
+                    <Text fontSize="md" color="gray.700">
+                      Address: {patient.patient.address}
+                    </Text>
+
+                    <Text fontSize="md" color="gray.600" mt={2}>
+                      Please proceed to the Doctor Room.
+                    </Text>
+                  </VStack>
+                ))}
             </Box>
           )}
         </Box>
@@ -136,6 +161,7 @@ const WaitingRoom = () => {
 
           {patients.length > 0 ? (
             <Box
+              bg="blue.100"
               maxH="400px"
               boxShadow="lg"
               rounded="md"
@@ -165,8 +191,8 @@ const WaitingRoom = () => {
                       <Tr
                         key={patient._id}
                         height="50px"
-                        bg={getRowBackgroundColor(patient.status)}
-                        _hover={{ bg: "gray.100" }} // Add hover effect
+                        bg="blue.50"
+                        _hover={{ bg: "blue.200" }}
                       >
                         <Td p={2}>{patient._id}</Td>
                         <Td p={2}>{patient.patient.patientName}</Td>

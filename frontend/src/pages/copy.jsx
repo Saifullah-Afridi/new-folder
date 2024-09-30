@@ -8,12 +8,10 @@ import {
   Tr,
   Th,
   Td,
-  Button,
   useToast,
-  Divider,
-  Text,
   VStack,
   Grid,
+  Text,
 } from "@chakra-ui/react";
 import io from "socket.io-client";
 import axios from "axios";
@@ -48,11 +46,8 @@ const WaitingRoom = () => {
   useEffect(() => {
     const socket = io("http://localhost:3000");
 
-    // Listen for the 'notify-waiting-room' event
     socket.on("update-waiting-room", (visit) => {
-      console.log("hello from there");
-
-      setCurrentVisit(visit._id); // Update current visit ID
+      setCurrentVisit(visit._id);
       toast({
         title: "New Visit Notified.",
         description: `Visit ID ${visit._id} has been notified.`,
@@ -66,30 +61,18 @@ const WaitingRoom = () => {
     };
   }, [toast]);
 
-  const getRowBackgroundColor = (status) => {
-    switch (status) {
-      case "In Progress":
-        return "blue.100";
-      case "Pending":
-        return "orange.100";
-      default:
-        return "white";
-    }
-  };
-
-  // Automatic scrolling effect
   useEffect(() => {
     const scrollContainer = scrollRef.current;
-    if (scrollContainer) {
+    if (scrollContainer && patients.length >= 9) {
       const scrollHeight = scrollContainer.scrollHeight;
       const clientHeight = scrollContainer.clientHeight;
 
       const scrollStep = 1;
       const scrollInterval = setInterval(() => {
         if (scrollContainer.scrollTop + clientHeight >= scrollHeight - 1) {
-          scrollContainer.scrollTop = 0; // Reset to top if reached the bottom
+          scrollContainer.scrollTop = 0;
         } else {
-          scrollContainer.scrollTop += scrollStep; // Scroll down
+          scrollContainer.scrollTop += scrollStep;
         }
       }, 50);
 
@@ -115,23 +98,47 @@ const WaitingRoom = () => {
       <Grid templateColumns={{ base: "1fr", md: "1fr 2fr" }} gap={6}>
         <Box>
           {currentVisit && (
-            <Box
-              p={6}
-              borderRadius="md"
-              mb={8}
-              textAlign="center"
-              bg="blue.50"
-              borderWidth={1}
-              borderColor="blue.400"
-              shadow="lg"
-            >
-              <Text fontSize="xl" fontWeight="bold" color="blue.800">
-                Current Patient
-              </Text>
-              <Text fontSize="md" color="gray.600" mt={2}>
-                Please proceed to the Doctor Room.
-              </Text>
-            </Box>
+            <>
+              {/* Current Patient Section */}
+              <Box
+                p={6}
+                borderRadius="md"
+                mt={8}
+                bgColor="green.200"
+                textAlign="center"
+                borderRightWidth={2}
+                borderColor="blue.400"
+                shadow="lg"
+              >
+                {patients
+                  .filter((patient) => patient._id === currentVisit)
+                  .map((patient) => (
+                    <VStack key={patient._id} spacing={3}>
+                      <Text fontSize="xl" fontWeight="bold" color="blue.900">
+                        Current Patient
+                      </Text>
+
+                      <Text fontSize="lg" fontWeight="bold">
+                        Name: {patient.patient.patientName}
+                      </Text>
+
+                      <Text fontSize="md" color="gray.700" fontWeight="bold">
+                        Guardian: {patient.patient.guardianName}
+                      </Text>
+
+                      <Text fontSize="md" color="gray.700">
+                        Address: {patient.patient.address}
+                      </Text>
+
+                      <Text fontSize="md" color="gray.600" mt={2}>
+                        Please proceed to the Doctor Room.
+                      </Text>
+                    </VStack>
+                  ))}
+              </Box>
+
+              {/* Divider Line */}
+            </>
           )}
         </Box>
 
@@ -142,6 +149,7 @@ const WaitingRoom = () => {
 
           {patients.length > 0 ? (
             <Box
+              bg="blue.100"
               maxH="400px"
               boxShadow="lg"
               rounded="md"
@@ -152,37 +160,32 @@ const WaitingRoom = () => {
                 <Table size="sm">
                   <Thead>
                     <Tr>
-                      <Th>Visit ID</Th>
-                      <Th>Patient Name</Th>
-                      <Th>Guardian Name</Th>
-                      <Th>Status</Th>
+                      <Th bg="blue.500" color="white" fontWeight="bold">
+                        Visit ID
+                      </Th>
+                      <Th bg="blue.500" color="white" fontWeight="bold">
+                        Patient Name
+                      </Th>
+                      <Th bg="blue.500" color="white" fontWeight="bold">
+                        Guardian Name
+                      </Th>
+                      <Th bg="blue.500" color="white" fontWeight="bold">
+                        Status
+                      </Th>
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {/* Render original patients */}
                     {patients.map((patient) => (
                       <Tr
                         key={patient._id}
                         height="50px"
-                        bg={getRowBackgroundColor(patient.status)}
+                        bg="blue.50"
+                        _hover={{ bg: "blue.200" }}
                       >
-                        <Td>{patient._id}</Td>
-                        <Td>{patient.patientName}</Td>
-                        <Td>{patient.guardianName}</Td>
-                        <Td>{patient.status}</Td>
-                      </Tr>
-                    ))}
-
-                    {patients.map((patient) => (
-                      <Tr
-                        key={`${patient._id}-clone`}
-                        height="50px"
-                        bg={getRowBackgroundColor(patient.status)}
-                      >
-                        <Td>{patient._id}</Td>
-                        <Td>{patient.patientName}</Td>
-                        <Td>{patient.status}</Td>
-                        <Td>{patient.status}</Td>
+                        <Td p={2}>{patient._id}</Td>
+                        <Td p={2}>{patient.patient.patientName}</Td>
+                        <Td p={2}>{patient.patient.guardianName}</Td>
+                        <Td p={2}>{patient.status}</Td>
                       </Tr>
                     ))}
                   </Tbody>
