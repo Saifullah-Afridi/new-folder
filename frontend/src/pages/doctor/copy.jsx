@@ -191,6 +191,25 @@ const Doctor = () => {
             isClosable: true,
           });
 
+          // const patientVisits = await contract.methods
+          //   .getVisitsByNIC(patientNIC)
+          //   .call();
+
+          // // Create a set of existing visit IDs for comparison
+          // const existingVisitIds = new Set(visits.map((visit) => visit.id));
+
+          // const newVisits = patientVisits
+          //   .map((visit) => ({
+          //     patient: { NIC: patientNIC },
+          //     prescription: visit.prescription,
+          //     medicines: visit.medicines,
+          //     tests: visit.tests,
+          //     id: visit.visitId, // Use the existing visitId from the blockchain data
+          //   }))
+          //   .filter((visit) => !existingVisitIds.has(visit.id)); // Filter out existing visits
+
+          // // Update visits state with new unique visits only
+          // setVisits((prevVisits) => [...prevVisits, ..newVisits]);
           await axios.patch(
             `http://localhost:3000/api/v1/visit/update-status/${editingVisit._id}`,
             { status: "complete" }

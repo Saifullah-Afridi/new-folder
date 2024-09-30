@@ -18,10 +18,10 @@ import axios from "axios";
 
 const WaitingRoom = () => {
   const [patients, setPatients] = useState([]);
-  const [currentVisit, setCurrentVisit] = useState(null);
+  const [currentVisit, setCurrentVisit] = useState(null); // Full visit object
   const toast = useToast();
   const scrollRef = useRef(null);
-  const audioRef = useRef(new Audio("/bell.mp3")); // Path to your notification sound
+  const audioRef = useRef(new Audio("/bell.mp3"));
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -45,13 +45,14 @@ const WaitingRoom = () => {
     };
 
     fetchPatients();
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     const socket = io("http://localhost:3000");
 
     socket.on("update-waiting-room", (visit) => {
-      setCurrentVisit(visit._id);
+      setCurrentVisit(visit); // Set the full visit object, not just the ID
+
       audioRef.current.play(); // Play the notification sound here
       toast({
         title: "New Visit Notified.",
@@ -61,6 +62,7 @@ const WaitingRoom = () => {
         isClosable: true,
       });
     });
+
     socket.on("removeVisit", (data) => {
       setPatients((prevPatients) =>
         prevPatients.filter((patient) => patient._id !== data._id)
@@ -73,6 +75,7 @@ const WaitingRoom = () => {
         isClosable: true,
       });
     });
+
     return () => {
       socket.disconnect();
     };
@@ -125,31 +128,27 @@ const WaitingRoom = () => {
               borderColor="blue.400"
               shadow="lg"
             >
-              {patients
-                .filter((patient) => patient._id === currentVisit)
-                .map((patient) => (
-                  <VStack key={patient._id} spacing={3}>
-                    <Text fontSize="xl" fontWeight="bold" color="blue.900">
-                      Current Patient
-                    </Text>
+              <VStack spacing={3}>
+                <Text fontSize="xl" fontWeight="bold" color="blue.900">
+                  Current Patient
+                </Text>
 
-                    <Text fontSize="lg" fontWeight="bold">
-                      Name: {patient.patient.patientName}
-                    </Text>
+                <Text fontSize="lg" fontWeight="bold">
+                  Name: {currentVisit.patient.patientName}
+                </Text>
 
-                    <Text fontSize="md" color="gray.700" fontWeight="bold">
-                      Guardian: {patient.patient.guardianName}
-                    </Text>
+                <Text fontSize="md" color="gray.700" fontWeight="bold">
+                  Guardian: {currentVisit.patient.guardianName}
+                </Text>
 
-                    <Text fontSize="md" color="gray.700">
-                      Address: {patient.patient.address}
-                    </Text>
+                <Text fontSize="md" color="gray.700">
+                  Address: {currentVisit.patient.address}
+                </Text>
 
-                    <Text fontSize="md" color="gray.600" mt={2}>
-                      Please proceed to the Doctor Room.
-                    </Text>
-                  </VStack>
-                ))}
+                <Text fontSize="lg" fontWeight="bold" color="orange.400" mt={2}>
+                  Please proceed to the Doctor Room.
+                </Text>
+              </VStack>
             </Box>
           )}
         </Box>
