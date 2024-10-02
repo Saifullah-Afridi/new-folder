@@ -47,6 +47,7 @@ const Doctor = () => {
   const [nic, setNIC] = useState(editingVisit?.patient?.NIC || null);
   const [prescription, setPrescription] = useState("");
   const [tests, setTests] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
   const [medicines, setMedicines] = useState("");
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -54,7 +55,7 @@ const Doctor = () => {
   const [showAllRecordsModal, setShowAllRecordsModal] = useState(false);
   const [previousVisits, setPreviousVisits] = useState([]);
   const [isLoadingPrevious, setIsLoadingPrevious] = useState(false);
-  const contractAddress = "0x747dC137742531Fb62906696A09f433992a9B616";
+  const contractAddress = "0xD9AaAeE67235c76d5e0732F92Cd66077FE817A86";
   useEffect(() => {
     const fetchVisits = async () => {
       try {
@@ -155,7 +156,9 @@ const Doctor = () => {
   const handleComplete = async () => {
     if (editingVisit) {
       const NIC = editingVisit?.patient?.NIC;
-      const visitDate = new Date().toISOString(); // Current date in seconds
+      const walletAddressToUse = walletAddress ? walletAddress : "";
+      const visitDate = new Date().toISOString(); // Current date in ISO format
+
       if (!prescription || !tests || !medicines) {
         toast({
           title: "Error",
@@ -171,32 +174,41 @@ const Doctor = () => {
         const web3 = new Web3(window.ethereum);
 
         try {
+          const accounts = await web3.eth.getAccounts();
+          const accountToUse = accounts[0]; // Use the first connected account
+
           const contract = new web3.eth.Contract(
             PatientDataStorage,
             contractAddress
           );
 
-          const accounts = await web3.eth.getAccounts();
-          const accountToUse = accounts[0];
-
+          // Pass visitDate along with other patient data to the smart contract
           await contract.methods
-            .storePatientData(NIC, prescription, medicines, tests, visitDate)
+            .storePatientData(
+              NIC,
+              prescription,
+              medicines,
+              tests,
+              visitDate,
+              walletAddressToUse
+            )
             .send({ from: accountToUse, gas: 300000 });
 
           toast({
             title: "Success",
-            description: "Patient data stored successfully!",
+            description: "Patient data stored successfully on the blockchain!",
             status: "success",
             duration: 5000,
             isClosable: true,
           });
 
+          // Update the visit status to "complete" in the backend API
           await axios.patch(
             `http://localhost:3000/api/v1/visit/update-status/${editingVisit._id}`,
             { status: "complete" }
           );
 
-          // Update the visits state to reflect the updated status
+          // Update the local state to reflect the updated status
           setVisits((prevVisits) =>
             prevVisits.map((visit) =>
               visit._id === editingVisit._id
@@ -208,7 +220,7 @@ const Doctor = () => {
           console.error("Error in handleComplete:", error);
           toast({
             title: "Error",
-            description: "Failed to store patient data.",
+            description: "Failed to store patient data or update visit status.",
             status: "error",
             duration: 5000,
             isClosable: true,
@@ -223,7 +235,7 @@ const Doctor = () => {
           isClosable: true,
         });
       }
-
+      setWalletAddress("");
       handleCancel();
     }
   };
@@ -271,7 +283,7 @@ const Doctor = () => {
       } catch (error) {
         toast({
           title: "Error",
-          description: { error },
+          description: error.message,
           status: "error",
           duration: 5000,
           isClosable: true,
@@ -425,6 +437,20 @@ const Doctor = () => {
             overflowY="auto"
             height="calc(100vh - 75px)"
           >
+            {" "}
+            {/* Wallet Address Field */}
+            <FormControl mb={4}>
+              <FormLabel fontSize="sm" htmlFor="walletAddress">
+                Wallet Address
+              </FormLabel>
+              <Input
+                {...inputFieldStyle}
+                id="walletAddress"
+                placeholder="Enter patient wallet address (e.g., 0x...)"
+                value={walletAddress}
+                onChange={(e) => setWalletAddress(e.target.value)}
+              />
+            </FormControl>
             <FormControl mb={4}>
               <FormLabel fontSize="sm" htmlFor="prescription">
                 Prescription Details
@@ -439,7 +465,6 @@ const Doctor = () => {
                 onChange={(e) => setPrescription(e.target.value)}
               />
             </FormControl>
-
             <FormControl mb={4}>
               <FormLabel fontSize="sm" htmlFor="medicines">
                 Medicines
@@ -454,7 +479,6 @@ const Doctor = () => {
                 onChange={(e) => setMedicines(e.target.value)}
               />
             </FormControl>
-
             <FormControl mb={4}>
               <FormLabel fontSize="sm" htmlFor="tests">
                 Tests
@@ -469,7 +493,6 @@ const Doctor = () => {
                 onChange={(e) => setTests(e.target.value)}
               />
             </FormControl>
-
             <Box display="flex" gap={3}>
               <Button
                 flex={1}

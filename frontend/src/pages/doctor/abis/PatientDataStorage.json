@@ -2,6 +2,19 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "_newDoctor",
+        "type": "address"
+      }
+    ],
+    "name": "setDoctor",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "string",
         "name": "_nic",
         "type": "string"
@@ -25,11 +38,29 @@
         "internalType": "string",
         "name": "_visitDate",
         "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_walletAddress",
+        "type": "string"
       }
     ],
     "name": "storePatientData",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "doctor",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -62,6 +93,57 @@
           {
             "internalType": "string",
             "name": "visitDate",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "walletAddress",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct PatientDataStorage.Visit[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_walletAddress",
+        "type": "string"
+      }
+    ],
+    "name": "getVisitsByWalletAddress",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "prescription",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "medicines",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "tests",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "visitDate",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "walletAddress",
             "type": "string"
           }
         ],
@@ -140,6 +222,11 @@
       {
         "internalType": "string",
         "name": "visitDate",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "walletAddress",
         "type": "string"
       }
     ],
