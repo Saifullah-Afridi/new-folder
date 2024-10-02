@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -18,7 +18,7 @@ import {
   Image,
 } from "@chakra-ui/react";
 import { FaUser, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const borderColor = "#e2e8f0"; // Light gray border color
 const focusBorderColor = "#3182ce"; // Blue color for focus
@@ -27,7 +27,6 @@ const filledBackgroundColor = "#e8f0fe"; // Blue background color for filled inp
 
 const Login = () => {
   const navigate = useNavigate();
-  const [employeeRole, setEmployeeRole] = useState("");
 
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -54,15 +53,6 @@ const Login = () => {
             userRole = user.occupation;
             navigate(`/${userRole}`);
           }
-
-          // if (userRole === "doctor") {
-          //   navigate("/doctor");
-          // }
-          // if (userRole === "receptionist") {
-          //   navigate("/receptionist");
-          // }
-          // setSuccessMessage("Patient Login");
-          // setErrorMessage("");
         })
         .catch((error) => {
           setErrorMessage(error.response.data.message);
@@ -92,7 +82,12 @@ const Login = () => {
     setSuccessMessage("");
     setErrorMessage("");
   };
-
+  useEffect(() => {
+    if (localStorage.getItem("user")) {
+      const employee = JSON.parse(localStorage.getItem("user"));
+      navigate(`/${employee.occupation}`);
+    }
+  }, []);
   return (
     <Container maxWidth="95%" mx="auto">
       <Flex
@@ -101,11 +96,7 @@ const Login = () => {
         h="90vh"
         gap={5}
       >
-        {/* Image Section */}
-        <Box
-          flex="1"
-          display={{ base: "none", md: "block" }} // Hide on mobile
-        >
+        <Box flex="1" display={{ base: "none", md: "block" }}>
           <Box
             rounded={5}
             mt={3}
@@ -116,7 +107,7 @@ const Login = () => {
             style={{ width: "100%", height: "95%", objectFit: "cover" }}
           />
         </Box>
-        {/* Form Section */}
+
         <Box
           justifySelf="center"
           alignSelf="center"
@@ -224,6 +215,16 @@ const Login = () => {
                 >
                   Login
                 </Button>
+              </Flex>
+              <Flex justify="end">
+                <Link to="/patient-record">
+                  <Text
+                    color="blue.400"
+                    _hover={{ color: "blue.600", textDecoration: "underline" }}
+                  >
+                    Check Your Records
+                  </Text>
+                </Link>
               </Flex>
             </Box>
           </form>

@@ -75,7 +75,7 @@ const PatientRecords = () => {
       mx="auto"
     >
       <Text fontSize="2xl" mb="6" fontWeight="bold">
-        Retrieve Patient Records
+        Check Your Records
       </Text>
       <VStack spacing={4} align="stretch">
         <Input
